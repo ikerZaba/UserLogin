@@ -8,7 +8,7 @@ use UserLoginService\Infrastructure\FacebookSessionManager;
 
 class UserLoginService
 {
-    private array $loggedUsers = ["admin"];
+    private array $loggedUsers = ["admin","Iker"];
     private SessionManager $fsm;
 
     /**
@@ -59,6 +59,20 @@ class UserLoginService
             return "Login correcto";
         }
         return "Login incorrecto";
+    }
+
+    public function logout(string $userName): string
+    {
+        if($elemNum = array_search("$userName",$this->loggedUsers) != false){
+            unset($this->loggedUsers[$elemNum]);
+
+            $logoutSuccess = $this->fsm->logout($userName);
+
+            if($logoutSuccess){
+                return "ok";
+            }
+        }
+        return "User not found";
     }
 
 }

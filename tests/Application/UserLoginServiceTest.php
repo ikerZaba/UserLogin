@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace UserLoginService\Tests\Application;
 
 use PHPUnit\Framework\TestCase;
+use UserLoginService\Application\SessionManager;
 use UserLoginService\Application\UserLoginService;
 use UserLoginService\Domain\User;
 use UserLoginService\Infrastructure\FacebookSessionManager;
@@ -20,7 +21,9 @@ final class UserLoginServiceTest extends TestCase
      */
     public function userIsLoggedIn()
     {
-        $userLoginService = new UserLoginService(new SessionManagerDummy());
+        $sessionmanager = \Mockery::mock(SessionManager::class);
+
+        $userLoginService = new UserLoginService($sessionmanager);
 
         $user = new User("admin");
 
@@ -34,8 +37,10 @@ final class UserLoginServiceTest extends TestCase
      */
     public function userIsNotLoggedIn()
     {
-        $userLoginService = new UserLoginService(new SessionManagerDummy());
-        $user = new User("Iker");
+        $sessionmanager = \Mockery::mock(SessionManager::class);
+
+        $userLoginService = new UserLoginService($sessionmanager);
+        $user = new User("IkerZaba");
 
         $userLoginService->manualLogin($user);
 
@@ -49,7 +54,9 @@ final class UserLoginServiceTest extends TestCase
      */
     public function getManuallyLoggedUsers()
     {
-        $userLoginService = new UserLoginService(new SessionManagerDummy());
+        $sessionmanager = \Mockery::mock(SessionManager::class);
+
+        $userLoginService = new UserLoginService($sessionmanager);
 
         $list = $userLoginService->getLoggedUsers();
 
@@ -61,7 +68,13 @@ final class UserLoginServiceTest extends TestCase
      */
     public function getExternalServiceSessionQuantity()
     {
-        $userLoginService = new UserLoginService(new SessionManagerStub());
+        $sessionmanager = \Mockery::mock(SessionManager::class);
+        $userLoginService = new UserLoginService($sessionmanager);
+
+        $sessionmanager
+            ->allows()
+            ->getSessions()
+            ->andReturn(10);
 
         $quantity = $userLoginService->getExternalSessions();
 
@@ -73,11 +86,60 @@ final class UserLoginServiceTest extends TestCase
      */
     public function FacebookLogin()
     {
-        $userLoginService = new UserLoginService(new SessionManagerFake());
+        $sessionmanager = \Mockery::mock(SessionManager::class);
+        $userLoginService = new UserLoginService($sessionmanager);
         $user = new User("Iker");
+
+        $sessionmanager
+            ->allows()
+            ->login("Iker","aaaaa")
+            ->andReturnTrue();
 
         $success = $userLoginService->login($user->getUserName(),"aaaaa");
 
         $this->assertEquals("Login correcto",$success);
     }
+
+    /**
+     * @test
+     */
+    public function FacebookLogoutFail()
+    {
+        $sessionmanager = \Mockery::spy(SessionManager::class);
+        $userLoginService = new UserLoginService($sessionmanager);
+        $user = new User("IkerZaba");
+
+        $sessionmanager
+            ->allows()
+            ->logout($user->getUserName())
+            ->andReturnFalse();
+
+        $success = $userLoginService->logout($user->getUserName());
+
+        $this->assertEquals("User not found",$success);
+    }
+
+    /**
+     * @test
+     */
+    public function FacebookLogoutSuccess()
+    {
+        $sessionmanager = \Mockery::spy(SessionManager::class);
+        $userLoginService = new UserLoginService($sessionmanager);
+        $user = new User("Iker");
+
+        $sessionmanager
+            ->allows()
+            ->logout($user->getUserName())
+            ->andReturnTrue();
+
+        $success = $userLoginService->logout($user->getUserName());
+
+        $sessionmanager
+            ->shouldHaveReceived()
+            ->logout($user->getUserName());
+
+        $this->assertEquals("ok",$success);
+    }
+
 }
